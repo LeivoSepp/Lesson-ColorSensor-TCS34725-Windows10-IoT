@@ -19,7 +19,7 @@ namespace LessonColorSensorTCS34725
             while (true)
             {
                 Color RGB = TCS34725Sensor.ColorRGBC();
-                    var message = $"R:{RGB.R} G:{RGB.G} B:{RGB.B} C:{RGB.A} ";
+                var message = $"R:{RGB.R} G:{RGB.G} B:{RGB.B} C:{RGB.A} ";
                 matrix.ScrollStringInFromRight(message, 70);
                 Task.Delay(1000).Wait();
             }
