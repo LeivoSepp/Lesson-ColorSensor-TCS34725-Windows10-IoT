@@ -1,6 +1,7 @@
 ﻿{
   "dependencies": {
-    "Glovebox.Graphics": "1.0.8",
+    "Microsoft.Azure.Devices.Client": "1.2.1",
+    "Microsoft.Devices.Tpm": "1.0.0",
     "Microsoft.NETCore.UniversalWindowsPlatform": "5.2.2"
   },
   "frameworks": {

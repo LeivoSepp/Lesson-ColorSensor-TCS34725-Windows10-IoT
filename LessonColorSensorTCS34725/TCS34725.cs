@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Windows.Devices.Enumeration;
 using Windows.Devices.I2c;
@@ -22,6 +25,16 @@ namespace LessonColorSensorTCS34725
         private const byte TCS34725_ENABLE_PON = 0x01; // Power on - Writing 1 activates the internal oscillator, 0 disables it
         private const byte TCS34725_CONTROL = 0x0F; // Set the gain level for the sensor
         private const byte TCS34725_ATIME = 0x01; // Integration time
+        private const byte TCS34725_INTEGRATIONTIME_2_4MS = 0xFF;  //	2.4ms	- 1 Cycle		(Max Count: 1024)
+        private const byte TCS34725_INTEGRATIONTIME_24MS = 0xF6;   //	24ms	- 10 Cycles		(Max Count: 10240)
+        private const byte TCS34725_INTEGRATIONTIME_50MS = 0xEB;   //	50ms	- 20 Cycles		(Max Count: 20480)
+        private const byte TCS34725_INTEGRATIONTIME_101MS = 0xD5;  //	101ms	- 42 Cycles		(Max Count: 43008)
+        private const byte TCS34725_INTEGRATIONTIME_154MS = 0xC0;  //	154ms	- 64 Cycles		(Max Count: 65535)
+        private const byte TCS34725_INTEGRATIONTIME_700MS = 0x00;  //	700ms	- 256 Cycles	(Max Count: 65535)
+        private const byte TCS34725_GAIN_1X = 0x00;   //	No Gain
+        private const byte TCS34725_GAIN_4X = 0x01;    //	2x Gain
+        private const byte TCS34725_GAIN_16X = 0x02;   //	16x Gain
+        private const byte TCS34725_GAIN_60X = 0x03;    //	60x	Gain
 
         // I2C Device
         private I2cDevice I2C;
@@ -51,6 +64,7 @@ namespace LessonColorSensorTCS34725
                 I2C = await I2cDevice.FromIdAsync(dis[0].Id, settings);   /* Create an I2cDevice with our selected bus controller and I2C settings */
 
                 InitialiseSensor();
+                knownColorList();
                 IsInitialised = true;
             }
             catch (Exception ex)
@@ -62,11 +76,12 @@ namespace LessonColorSensorTCS34725
         {
             // Turn on
             write8(TCS34725_ENABLE, TCS34725_ENABLE_PON);
+            Task.Delay(3).Wait();
             write8(TCS34725_ENABLE, TCS34725_ENABLE_PON | TCS34725_ENABLE_AEN);
             // Integration Time
-            write8(TCS34725_ATIME, 0x00);
+            write8(TCS34725_ATIME, TCS34725_INTEGRATIONTIME_700MS);
             // Gain
-            write8(TCS34725_CONTROL, 0x01);
+            write8(TCS34725_CONTROL, TCS34725_GAIN_60X);
         }
         private Color ConvertToColor(int[] rgbc)
         {
@@ -92,6 +107,39 @@ namespace LessonColorSensorTCS34725
         {
             Initialise();
             return ConvertToColor(readRGBC());
+        }
+        private Dictionary<String, Color> colors;
+        private void knownColorList()
+        {
+            colors = typeof(Colors).GetProperties(BindingFlags.Static | BindingFlags.Public).ToDictionary(p => p.Name, p => (Color)p.GetValue(null, null));
+        }
+        public string ColorName()
+        {
+            Color color = ColorRGBC();
+            double minDistance = double.MaxValue;
+            string minColor = "Black";
+
+            foreach (var colorProperty in colors)
+            {
+                var colorPropertyValue = (Color)colorProperty.Value;
+                if (colorPropertyValue.R == color.R
+                        && colorPropertyValue.G == color.G
+                        && colorPropertyValue.B == color.B)
+                {
+                    return colorProperty.Key;
+                }
+                double distance = Math.Pow(colorPropertyValue.R - color.R, 2) +
+                                Math.Pow(colorPropertyValue.G - color.G, 2) +
+                                Math.Pow(colorPropertyValue.B - color.B, 2);
+                distance = (int)Math.Sqrt(distance);
+
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    minColor = colorProperty.Key;
+                }
+            }
+            return minColor;
         }
         private void write8(byte addr, byte cmd)
         {
